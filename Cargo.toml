@@ -1,0 +1,31 @@
+[package]
+name = "kafka-exporter"
+version = "0.1.0"
+authors = ["nutmos <nuttapong_mos@hotmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+prometheus = "0.9.0"
+rdkafka = "0.24.0"
+kafka = "0.8.0"
+futures = "0.3.5"
+prometheus_exporter_base = "0.31.0"
+kube = "0.35.1"
+kube-derive = "0.35.1"
+k8s-openapi = { version = "0.8.0", default-features = false, features = ["v1_17"] }
+# Hyper is an asynchronous HTTP library. We'll use it to power our HTTP
+# server and to make HTTP requests.
+hyper = "0.13"
+# To setup some sort of runtime needed by Hyper, we will use the Tokio runtime.
+tokio = { version = "0.2", features = ["full"] }
+log = "0.4.11"
+clap = "2.33.3"
+chrono = "0.4.15"
+env_logger = "0.7.1"
+
+# (only for testing)
+anyhow = "1.0.31"
+reqwest = { version = "0.10.4", features = ["blocking"] }
+lazy_static = "1.4"
