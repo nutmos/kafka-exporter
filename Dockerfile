@@ -7,9 +7,9 @@ RUN cargo build --release
 RUN rm src/*.rs
 
 ADD src/ ./src
-RUN rm ./target/release/deps/kafka_healthcheck*
-RUN cargo build --release && cp /kafka-healthcheck/target/release/kafka-healthcheck /bin
+RUN rm ./target/release/deps/kafka_exporter*
+RUN cargo build --release && cp /kafka-healthcheck/target/release/kafka-exporter /bin
 
 FROM debian:10.6
-COPY --from=builder /bin/kafka-healthcheck /bin
-CMD ["kafka-healthcheck"]
+COPY --from=builder /bin/kafka-exporter /bin
+CMD ["kafka-exporter"]

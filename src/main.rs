@@ -1,24 +1,24 @@
 use clap::{App, Arg};
 use futures::StreamExt;
-use log::{info, warn};
+use log::{info, debug};
 
 use rdkafka::client::ClientContext;
 use rdkafka::config::{ClientConfig, RDKafkaLogLevel};
 use rdkafka::consumer::stream_consumer::StreamConsumer;
-use rdkafka::consumer::{CommitMode, Consumer, ConsumerContext, Rebalance};
+use rdkafka::consumer::{Consumer, ConsumerContext, Rebalance};
 use rdkafka::error::KafkaResult;
-use rdkafka::message::{Headers, Message};
+//use rdkafka::message::{Headers, Message};
 use rdkafka::topic_partition_list::TopicPartitionList;
 use rdkafka::statistics::Statistics;
 use rdkafka::util::get_rdkafka_version;
 
-use crate::example_utils::setup_logger;
+//use crate::example_utils::setup_logger;
 
 use std::net::SocketAddr;
 use prometheus_exporter_base::{render_prometheus, MetricType, PrometheusMetric};
-use futures::future::{ok, join_all};
-use futures::join;
-use futures::{executor, future};
+use futures::future::{ok};
+//use futures::join;
+use futures::{future};
 use lazy_static::lazy_static;
 use std::sync::Mutex;
 
@@ -26,7 +26,7 @@ lazy_static! {
     static ref KAFKA_STAT: Mutex<Option<Statistics>> = Mutex::new(None);
 }
 
-mod example_utils;
+//mod example_utils;
 
 // A context can be used to change the behavior of producers and consumers by adding callbacks
 // that will be executed by librdkafka.
@@ -36,7 +36,7 @@ struct CustomContext;
 impl ClientContext for CustomContext {
     fn stats(&self, statistics: Statistics) {
         let mut guard = KAFKA_STAT.lock().unwrap();
-        info!("Get Stat Completed {:?}", statistics);
+        debug!("Get Stat Completed {:?}", statistics);
         *guard = Some(statistics);
     }
 }
@@ -73,13 +73,17 @@ async fn consume_and_print(brokers: &str, group_id: &str, topics: &[&str]) {
         .create_with_context(context)
         .expect("Consumer creation failed");
 
+    info!("In function test0");
     consumer
         .subscribe(&topics.to_vec())
         .expect("Can't subscribe to specified topics");
+    info!("In function test1");
 
     // consumer.start() returns a stream. The stream can be used ot chain together expensive steps,
     // such as complex computations on a thread pool or asynchronous IO.
     let mut message_stream = consumer.start();
+
+    info!("In function test2");
 
     while let Some(message) = message_stream.next().await {
     }
@@ -113,6 +117,7 @@ async fn consume_and_print(brokers: &str, group_id: &str, topics: &[&str]) {
 
 #[tokio::main]
 async fn main() {
+    env_logger::init();
     let matches = App::new("consumer example")
         .version(option_env!("CARGO_PKG_VERSION").unwrap_or(""))
         .about("Simple command line consumer")
@@ -145,12 +150,12 @@ async fn main() {
                 .help("Topic list")
                 .takes_value(true)
                 .multiple(true)
-                .default_value("testrust")
+                .default_value("test-exporter")
                 //.required(true),
         )
         .get_matches();
 
-    setup_logger(true, matches.value_of("log-conf"));
+    //setup_logger(true, matches.value_of("log-conf"));
 
     let (version_n, version_s) = get_rdkafka_version();
     info!("rd_kafka_version: 0x{:08x}, {}", version_n, version_s);
@@ -162,21 +167,32 @@ async fn main() {
     let kafka_async = consume_and_print(brokers, group_id, &topics);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 32221));
-    println!("Kafka Prometheus Exporter");
-    println!("Listen on {}", addr);
+    info!("Kafka Prometheus Exporter");
+    info!("Listen on {}", addr);
 
     let prom_async = render_prometheus(addr, {}, |_request, _options| {
         info!("Test");
-
-        let pc = PrometheusMetric::new("kafka_topics_count", MetricType::Gauge, "Kafka Topics Count");
-        let mut s = pc.render_header();
-        let mut labels = Vec::new();
-        labels.push(("kafka", "topics"));
-        s.push_str(&pc.render_sample(Some(&labels), 7, None));
+        let mut s = "".to_string();
         let mut guard = KAFKA_STAT.lock().unwrap();
         match &*guard {
             None => info!("Could not get Kafka stat"),
-            Some(_) => info!("Get stat completed"),
+            Some(stat) => {
+                let pc = PrometheusMetric::new("kafka_topics_count", MetricType::Gauge, "Kafka Topics Count");
+                s += &pc.render_header();
+                let mut labels = Vec::new();
+                labels.push(("kafka", "topics"));
+                s.push_str(&pc.render_sample(Some(&labels), stat.brokers.keys().len(), None));
+                info!("Get stat for broker {} completed: {} brokers", stat.name, stat.brokers.keys().len());
+                for broker in stat.brokers.iter() {
+                    let (key, val) = broker;
+                    info!("Get stat for broker {}", val.name);
+                }
+                info!("Get stat for broker {} completed: {} topics", stat.name, stat.topics.keys().len());
+                for topic in stat.topics.iter() {
+                    let (key, val) = topic;
+                    info!("Get stat for topic {}", val.topic);
+                }
+            },
         }
         ok(s)
     });
