@@ -73,7 +73,6 @@ async fn consume_and_print(brokers: &str, group_id: &str, topics: &[&str]) {
         .create_with_context(context)
         .expect("Consumer creation failed");
 
-    info!("In function test0");
     consumer
         .subscribe(&topics.to_vec())
         .expect("Can't subscribe to specified topics");
@@ -177,15 +176,15 @@ async fn main() {
         match &*guard {
             None => info!("Could not get Kafka stat"),
             Some(stat) => {
-                let pc = PrometheusMetric::new("kafka_topics_count", MetricType::Gauge, "Kafka Topics Count");
-                s += &pc.render_header();
-                let mut labels = Vec::new();
-                labels.push(("kafka", "topics"));
-                s.push_str(&pc.render_sample(Some(&labels), stat.brokers.keys().len(), None));
                 info!("Get stat for broker {} completed: {} brokers", stat.name, stat.brokers.keys().len());
                 for broker in stat.brokers.iter() {
                     let (key, val) = broker;
                     info!("Get stat for broker {}", val.name);
+                    let mut labels = Vec::new();
+                    labels.push(("kafka_broker", &val.name[..]));
+                    let pc = PrometheusMetric::new("kafka_topics_count", MetricType::Gauge, "Kafka Topics Count");
+                    s += &pc.render_header();
+                    s.push_str(&pc.render_sample(Some(&labels[..]), stat.brokers.keys().len(), None));
                 }
                 info!("Get stat for broker {} completed: {} topics", stat.name, stat.topics.keys().len());
                 for topic in stat.topics.iter() {
